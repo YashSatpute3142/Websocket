@@ -1,0 +1,331 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Session 4</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            min-height: 100vh;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 750px;
+
+            background: #ffffff;
+            padding: 35px;
+
+            border-radius: 18px;
+            border: 1px solid #e2e8f0;
+
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2563eb;
+
+            font-size: 36px;
+            margin-bottom: 25px;
+        }
+
+        #status {
+            text-align: center;
+
+            padding: 12px;
+            margin-bottom: 25px;
+
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+
+            color: #2563eb;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 12px;
+
+            margin-bottom: 25px;
+        }
+
+        input {
+            flex: 1;
+            min-width: 0;
+
+            padding: 14px 18px;
+
+            background: #ffffff;
+            color: #1e293b;
+
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+
+            outline: none;
+            font-size: 16px;
+        }
+
+        input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        input::placeholder {
+            color: #94a3b8;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 13px 22px;
+
+            border: none;
+            border-radius: 8px;
+
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        #connect {
+            background: #2563eb;
+        }
+
+        #connect:hover {
+            background: #1d4ed8;
+        }
+
+        #send {
+            background: #16a34a;
+        }
+
+        #send:hover {
+            background: #15803d;
+        }
+
+        #close {
+            background: #ef4444;
+        }
+
+        #close:hover {
+            background: #dc2626;
+        }
+
+        button:active {
+            transform: scale(0.97);
+        }
+
+        h2 {
+            font-size: 22px;
+            color: #334155;
+
+            margin-bottom: 15px;
+        }
+
+        #messages {
+            list-style: none;
+
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        #messages li {
+            padding: 14px 18px;
+
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+
+            border-left: 4px solid #3b82f6;
+
+            font-size: 16px;
+            color: #334155;
+
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            .input-group {
+                flex-direction: column;
+            }
+
+            .buttons {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>WebSocket API Practice</h1>
+
+        <p id="status">Not connected</p>
+
+        <div class="input-group">
+            <input id="message" placeholder="Type a message">
+        </div>
+
+        <div class="buttons">
+            <button id="connect">Connect</button>
+            <button id="send">Send</button>
+            <button id="close">Close</button>
+        </div>
+
+        <h2>Messages</h2>
+
+        <ul id="messages"></ul>
+
+    </div>
+
+    <script>
+        const status = document.getElementById("status");
+        const input = document.getElementById("message");
+        const messages = document.getElementById("messages");
+
+        const connectButton = document.getElementById("connect");
+        const sendButton = document.getElementById("send");
+        const closeButton = document.getElementById("close");
+
+        let socket;
+
+        function addMessage(text) {
+            const item = document.createElement("li");
+            item.textContent = text;
+            messages.appendChild(item);
+        }
+
+        function updateStatus() {
+            if (!socket) {
+                status.textContent = "Not connected";
+                return;
+            }
+
+            const states = [
+                "CONNECTING",
+                "OPEN",
+                "CLOSING",
+                "CLOSED"
+            ];
+
+            status.textContent =
+                states[socket.readyState];
+        }
+
+        connectButton.addEventListener("click", () => {
+            if (
+                socket &&
+                socket.readyState !== WebSocket.CLOSED
+            ) {
+                addMessage("Socket already exists.");
+                return;
+            }
+
+            socket = new WebSocket("ws://localhost:8080");
+
+            updateStatus();
+
+            socket.addEventListener("open", () => {
+                updateStatus();
+                addMessage("Connected to server.");
+            });
+
+            socket.addEventListener("message", (event) => {
+                addMessage("Server: " + event.data);
+            });
+
+            socket.addEventListener("error", () => {
+                addMessage("WebSocket error.");
+            });
+
+            socket.addEventListener("close", (event) => {
+                updateStatus();
+
+                addMessage(
+                    "Closed. Code: " +
+                    event.code +
+                    ", Reason: " +
+                    event.reason +
+                    ", Clean: " +
+                    event.wasClean
+                );
+            });
+        });
+
+        sendButton.addEventListener("click", () => {
+            if (
+                !socket ||
+                socket.readyState !== WebSocket.OPEN
+            ) {
+                addMessage("Cannot send: socket is not open.");
+                return;
+            }
+
+            socket.send(input.value);
+
+            addMessage("You: " + input.value);
+
+            input.value = "";
+        });
+
+        closeButton.addEventListener("click", () => {
+            if (
+                socket &&
+                socket.readyState === WebSocket.OPEN
+            ) {
+                socket.close(1000, "Closed by user");
+            } else {
+                addMessage("Socket is not open.");
+            }
+        });
+    </script>
+
+</body>
+</html>
