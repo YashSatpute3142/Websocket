@@ -1,0 +1,227 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Websocket Chat</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            min-height: 100vh;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+
+            background: white;
+            padding: 35px;
+
+            border-radius: 18px;
+            border: 1px solid #e2e8f0;
+
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2563eb;
+            font-size: 36px;
+            margin-bottom: 25px;
+        }
+
+        #status {
+            text-align: center;
+
+            padding: 12px;
+            margin-bottom: 25px;
+
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+
+            color: #2563eb;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        input {
+            flex: 1;
+            min-width: 0;
+
+            padding: 14px 18px;
+
+            background: #ffffff;
+            color: #1e293b;
+
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+
+            outline: none;
+            font-size: 16px;
+        }
+
+        input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        input::placeholder {
+            color: #94a3b8;
+        }
+
+        button {
+            padding: 14px 25px;
+
+            border: none;
+            border-radius: 8px;
+
+            background: #2563eb;
+            color: white;
+
+            font-size: 16px;
+            font-weight: bold;
+
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button:active {
+            transform: scale(0.97);
+        }
+
+        h2 {
+            font-size: 22px;
+            color: #334155;
+            margin-bottom: 15px;
+        }
+
+        #messages {
+            list-style: none;
+
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        #messages li {
+            padding: 14px 18px;
+
+            background: #eff6ff;
+            border: 1px solid #dbeafe;
+            border-radius: 10px;
+
+            border-left: 4px solid #3b82f6;
+
+            font-size: 16px;
+            color: #334155;
+
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            .input-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>Websocket Chat</h1>
+
+        <p id="status">Connecting.....</p>
+
+        <div class="input-group">
+            <input type="text" id="message" placeholder="Type a Message">
+            <button id="send">Send</button>
+        </div>
+
+        <h2>Messages</h2>
+
+        <ul id="messages"></ul>
+
+    </div>
+
+    <script>
+        const status = document.getElementById("status");
+        const input = document.getElementById("message");
+        const sendButton = document.getElementById("send");
+        const messages = document.getElementById("messages");
+
+        const socket = new WebSocket("ws://localhost:8080");
+
+        socket.addEventListener("open", () => {
+            status.textContent = "connected";
+        });
+
+        socket.addEventListener("message", (event) => {
+            const item = document.createElement("li");
+            item.textContent = event.data;
+            messages.appendChild(item);
+        });
+
+        socket.addEventListener("close", () => {
+            status.textContent = "Disconnected";
+        });
+
+        socket.addEventListener("error", () => {
+            status.textContent = "connection error";
+        });
+
+        sendButton.addEventListener("click", () => {
+            if (socket.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            socket.send(input.value);
+            input.value = "";
+        });
+    </script>
+
+</body>
+</html>
