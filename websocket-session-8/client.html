@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON WebSocket</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            min-height: 100vh;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: 0 auto;
+            padding: 30px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 25px rgba(15, 23, 42, 0.08);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2563eb;
+            margin: 0 0 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #64748b;
+            margin-bottom: 25px;
+        }
+
+        #status {
+            text-align: center;
+            width: fit-content;
+            margin: 0 auto 25px;
+            padding: 9px 18px;
+            border-radius: 25px;
+            background: #fee2e2;
+            color: #b91c1c;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        #status.connected {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .messages-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        #messages {
+            list-style: none;
+            padding: 15px;
+            margin: 0 0 20px;
+            height: 320px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #f8fafc;
+        }
+
+        #messages li {
+            background: #e0edff;
+            color: #1e40af;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
+
+        #messages li:last-child {
+            margin-bottom: 0;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            flex: 1;
+            min-width: 0;
+            padding: 13px 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 15px;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        button {
+            padding: 13px 22px;
+            border: none;
+            border-radius: 10px;
+            background: #2563eb;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button:active {
+            transform: scale(0.97);
+        }
+
+        @media (max-width: 500px) {
+            body {
+                padding: 20px 12px;
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 23px;
+            }
+
+            .input-area {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>JSON WebSocket</h1>
+        <p class="subtitle">Real-time messaging using JSON</p>
+
+        <p id="status">Connecting...</p>
+
+        <div class="messages-title">Messages</div>
+
+        <ul id="messages"></ul>
+
+        <div class="input-area">
+            <input id="message" placeholder="Type a message">
+
+            <button id="send">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const status = document.getElementById("status");
+        const input = document.getElementById("message");
+        const sendButton = document.getElementById("send");
+        const messages = document.getElementById("messages");
+
+        const socket = new WebSocket("ws://localhost:8080");
+
+        function addMessage(text) {
+            const item = document.createElement("li");
+
+            item.textContent = text;
+
+            messages.appendChild(item);
+        }
+
+        socket.addEventListener("open", () => {
+            status.textContent = "Connected";
+            status.classList.add("connected");
+        });
+
+        socket.addEventListener("message", (event) => {
+            let message;
+
+            try {
+                message = JSON.parse(event.data);
+            } catch (error) {
+                addMessage("Received invalid JSON from server");
+                return;
+            }
+
+            if (message.type === "chat") {
+                addMessage("Chat: " + message.payload.text);
+            } else if (message.type === "status") {
+                addMessage("Status: " + message.payload.message);
+            } else if (message.type === "error") {
+                addMessage("Error: " + message.payload.message);
+            } else {
+                addMessage("Unknown message type");
+            }
+        });
+
+        socket.addEventListener("close", () => {
+            status.textContent = "Disconnected";
+            status.classList.remove("connected");
+        });
+
+        socket.addEventListener("error", () => {
+            status.textContent = "Connection error";
+            status.classList.remove("connected");
+        });
+
+        sendButton.addEventListener("click", () => {
+            if (socket.readyState !== WebSocket.OPEN) {
+                addMessage("Connection is not open");
+                return;
+            }
+
+            const text = input.value.trim();
+
+            if (text === "") {
+                return;
+            }
+
+            const message = {
+                type: "chat",
+                payload: {
+                    text: text
+                },
+                timestamp: Date.now()
+            };
+
+            socket.send(JSON.stringify(message));
+
+            input.value = "";
+        });
+    </script>
+</body>
+
+</html>

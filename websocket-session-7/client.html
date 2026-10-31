@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Multi Client</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 40px 20px;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 18px;
+            box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            text-align: center;
+            color: #2563eb;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #64748b;
+            margin-bottom: 25px;
+        }
+
+        .status-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+
+        #status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            border-radius: 30px;
+            background: #fee2e2;
+            color: #b91c1c;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        #status::before {
+            content: "";
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        #status.connected {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .messages-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .messages-heading h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        #messages {
+            list-style: none;
+            padding: 15px;
+            margin: 0 0 20px;
+            height: 350px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #f8fafc;
+        }
+
+        #messages li {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            background: #e0edff;
+            color: #1e40af;
+            overflow-wrap: anywhere;
+            line-height: 1.5;
+        }
+
+        #messages li:last-child {
+            margin-bottom: 0;
+        }
+
+        .message-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        #messageInput {
+            flex: 1;
+            min-width: 0;
+            padding: 13px 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        #messageInput:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        button {
+            padding: 13px 22px;
+            border: none;
+            border-radius: 10px;
+            background: #2563eb;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button:active {
+            transform: scale(0.97);
+        }
+
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 500px) {
+            body {
+                padding: 20px 12px;
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 23px;
+            }
+
+            .message-form {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>WebSocket Chat</h1>
+        <p class="subtitle">Real-time communication with multiple clients</p>
+
+        <div class="status-container">
+            <span id="status">Connecting...</span>
+        </div>
+
+        <div class="messages-heading">
+            <h2>Messages</h2>
+        </div>
+
+        <ul id="messages"></ul>
+
+        <form id="messageForm" class="message-form">
+            <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off">
+            <button type="submit" id="sendButton" disabled>Send</button>
+        </form>
+    </div>
+
+    <script>
+        const socket = new WebSocket("ws://localhost:8080");
+
+        const status = document.getElementById("status");
+        const messages = document.getElementById("messages");
+        const messageForm = document.getElementById("messageForm");
+        const messageInput = document.getElementById("messageInput");
+        const sendButton = document.getElementById("sendButton");
+
+        function addMessage(message) {
+            const li = document.createElement("li");
+            li.textContent = message;
+            messages.appendChild(li);
+
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        socket.addEventListener("open", () => {
+            status.textContent = "Connected";
+            status.classList.add("connected");
+            sendButton.disabled = false;
+            addMessage("Connected to WebSocket server.");
+        });
+
+        socket.addEventListener("message", (event) => {
+            addMessage(event.data);
+        });
+
+        socket.addEventListener("close", () => {
+            status.textContent = "Disconnected";
+            status.classList.remove("connected");
+            sendButton.disabled = true;
+            addMessage("Connection closed.");
+        });
+
+        socket.addEventListener("error", () => {
+            addMessage("WebSocket connection error.");
+        });
+
+        messageForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+
+            const message = messageInput.value.trim();
+
+            if (message === "" || socket.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            socket.send(message);
+            messageInput.value = "";
+            messageInput.focus();
+        });
+    </script>
+</body>
+
+</html>
