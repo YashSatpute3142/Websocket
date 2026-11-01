@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Protocol Demo</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            max-width: 750px;
+            margin: 40px auto;
+            padding: 25px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2563eb;
+            margin-bottom: 25px;
+        }
+
+        #status {
+            text-align: center;
+            font-weight: bold;
+            color: #16a34a;
+            background: #dcfce7;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 11px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px 3px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        input {
+            padding: 11px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 65%;
+            max-width: 400px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px #bfdbfe;
+        }
+
+        h2 {
+            color: #334155;
+            margin-top: 30px;
+        }
+
+        #responses {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px 15px 15px 35px;
+            min-height: 150px;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        #responses li {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #eff6ff;
+            border-left: 4px solid #2563eb;
+            border-radius: 4px;
+            overflow-wrap: anywhere;
+            font-size: 14px;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                margin: 15px;
+                padding: 15px;
+            }
+
+            input {
+                width: 100%;
+                max-width: none;
+            }
+
+            button {
+                width: 100%;
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>WebSocket Protocol Demo</h1>
+
+    <p id="status">Connecting...</p>
+
+    <button id="countBtn">Get Client Count</button>
+
+    <br><br>
+
+    <input type="text" id="chatInput" placeholder="Enter chat message">
+
+    <button id="chatBtn">Send Chat</button>
+
+    <br><br>
+
+    <button id="unknownBtn">Send Unknown Message</button>
+
+    <h2>Server Responses</h2>
+
+    <ul id="responses"></ul>
+
+    <script>
+        const status = document.getElementById("status");
+        const responses = document.getElementById("responses");
+
+        const ws = new WebSocket("ws://localhost:8080");
+
+        // Generate a unique request ID
+        function createRequestId() {
+            return crypto.randomUUID();
+        }
+
+        // Send a structured request
+        function sendRequest(type, payload) {
+            if (ws.readyState !== WebSocket.OPEN) {
+                status.textContent = "WebSocket is not connected";
+                return;
+            }
+
+            const message = {
+                type,
+                id: createRequestId(),
+                payload,
+                timestamp: Date.now()
+            };
+
+            ws.send(JSON.stringify(message));
+
+            return message.id;
+        }
+
+        // Display a server response
+        function showResponse(message) {
+            const li = document.createElement("li");
+
+            li.innerHTML = `
+                <strong>Type:</strong> ${message.type}<br>
+                <strong>Request ID:</strong> ${message.id}<br>
+                <strong>Response:</strong> ${JSON.stringify(message.payload)}
+            `;
+
+            responses.appendChild(li);
+        }
+
+        // WebSocket connection opened
+        ws.addEventListener("open", () => {
+            status.textContent = "Connected";
+        });
+
+        // Receive server messages
+        ws.addEventListener("message", (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                showResponse(message);
+            } catch (error) {
+                console.error("Invalid server response:", error);
+            }
+        });
+
+        // WebSocket connection closed
+        ws.addEventListener("close", () => {
+            status.textContent = "Disconnected";
+        });
+
+        // WebSocket connection error
+        ws.addEventListener("error", () => {
+            status.textContent = "Connection error";
+        });
+
+        // Request client count
+        document.getElementById("countBtn")
+            .addEventListener("click", () => {
+                sendRequest("get_client_count", {});
+            });
+
+        // Send chat message
+        document.getElementById("chatBtn")
+            .addEventListener("click", () => {
+                const text =
+                    document.getElementById("chatInput").value.trim();
+
+                if (text === "") {
+                    return;
+                }
+
+                sendRequest("chat", { text });
+            });
+
+        // Send unsupported message type
+        document.getElementById("unknownBtn")
+            .addEventListener("click", () => {
+                sendRequest("unknown_type", {});
+            });
+    </script>
+
+</body>
+
+</html>
