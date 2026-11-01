@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Reconnection</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            max-width: 750px;
+            margin: 40px auto;
+            padding: 25px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2563eb;
+            margin-bottom: 25px;
+        }
+
+        #status {
+            text-align: center;
+            font-weight: bold;
+            color: #64748b;
+            background: #e2e8f0;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 11px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px 3px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        #disconnectBtn {
+            background: #dc2626;
+        }
+
+        #disconnectBtn:hover {
+            background: #b91c1c;
+        }
+
+        input {
+            padding: 11px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 65%;
+            max-width: 400px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px #bfdbfe;
+        }
+
+        h2 {
+            color: #334155;
+            margin-top: 30px;
+        }
+
+        #logs {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px 15px 15px 35px;
+            min-height: 150px;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        #logs li {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #eff6ff;
+            border-left: 4px solid #2563eb;
+            border-radius: 4px;
+            overflow-wrap: anywhere;
+            font-size: 14px;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                margin: 15px;
+                padding: 15px;
+            }
+
+            input {
+                width: 100%;
+                max-width: none;
+            }
+
+            button {
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>WebSocket Reconnection Demo</h1>
+
+    <p id="status">Disconnected</p>
+
+    <button id="connectBtn">Connect</button>
+    <button id="disconnectBtn">Disconnect</button>
+
+    <br><br>
+
+    <input
+        id="messageInput"
+        type="text"
+        placeholder="Enter message"
+    >
+
+    <button id="sendBtn">Send</button>
+
+    <h2>Logs</h2>
+
+    <ul id="logs"></ul>
+
+    <script>
+        let ws = null;
+
+        let reconnectTimer = null;
+        let reconnectAttempts = 0;
+
+        let manuallyDisconnected = false;
+
+        const baseDelay = 1000;
+        const maxDelay = 30000;
+
+        const status = document.getElementById("status");
+        const logs = document.getElementById("logs");
+
+        function log(message) {
+            const li = document.createElement("li");
+            li.textContent = message;
+            logs.appendChild(li);
+        }
+
+        function connect() {
+            // Prevent multiple simultaneous connections
+            if (
+                ws &&
+                (
+                    ws.readyState === WebSocket.OPEN ||
+                    ws.readyState === WebSocket.CONNECTING
+                )
+            ) {
+                log("Already connected or connecting");
+                return;
+            }
+
+            manuallyDisconnected = false;
+
+            log("Connecting to server...");
+
+            ws = new WebSocket("ws://localhost:8080");
+
+            status.textContent = "Connecting...";
+            status.style.color = "#d97706";
+            status.style.background = "#fef3c7";
+
+            ws.addEventListener("open", () => {
+                status.textContent = "Connected";
+                status.style.color = "#16a34a";
+                status.style.background = "#dcfce7";
+
+                log("Connected successfully");
+
+                // Reset retry counter after successful connection
+                reconnectAttempts = 0;
+
+                // Clear any scheduled retry
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            });
+
+            ws.addEventListener("message", (event) => {
+                log("Received: " + event.data);
+            });
+
+            ws.addEventListener("close", () => {
+                status.textContent = "Disconnected";
+                status.style.color = "#64748b";
+                status.style.background = "#e2e8f0";
+
+                log("Connection closed");
+
+                if (!manuallyDisconnected) {
+                    scheduleReconnect();
+                }
+            });
+
+            ws.addEventListener("error", () => {
+                log("WebSocket error");
+            });
+        }
+
+        function scheduleReconnect() {
+            // Do not reconnect if user requested disconnect
+            if (manuallyDisconnected) {
+                return;
+            }
+
+            // Do not schedule multiple retry timers
+            if (reconnectTimer !== null) {
+                return;
+            }
+
+            const exponentialDelay = Math.min(
+                baseDelay * 2 ** reconnectAttempts,
+                maxDelay
+            );
+
+            // Add random jitter from 0 to calculated delay
+            const delay = Math.random() * exponentialDelay;
+
+            reconnectAttempts++;
+
+            log(
+                `Reconnect attempt ${reconnectAttempts} ` +
+                `scheduled in ${(delay / 1000).toFixed(2)} seconds`
+            );
+
+            reconnectTimer = setTimeout(() => {
+                reconnectTimer = null;
+                connect();
+            }, delay);
+        }
+
+        function disconnect() {
+            manuallyDisconnected = true;
+
+            // Cancel any scheduled reconnection
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+
+            if (
+                ws &&
+                (
+                    ws.readyState === WebSocket.OPEN ||
+                    ws.readyState === WebSocket.CONNECTING
+                )
+            ) {
+                log("Manual disconnect");
+                ws.close(1000, "User requested disconnect");
+            } else {
+                status.textContent = "Disconnected";
+                status.style.color = "#64748b";
+                status.style.background = "#e2e8f0";
+
+                log("No active connection");
+            }
+        }
+
+        document.getElementById("connectBtn")
+            .addEventListener("click", connect);
+
+        document.getElementById("disconnectBtn")
+            .addEventListener("click", disconnect);
+
+        document.getElementById("sendBtn")
+            .addEventListener("click", () => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) {
+                    log("Cannot send: WebSocket is not open");
+                    return;
+                }
+
+                const input =
+                    document.getElementById("messageInput");
+
+                ws.send(input.value);
+
+                log("Sent: " + input.value);
+
+                input.value = "";
+            });
+    </script>
+
+</body>
+
+</html>
