@@ -1,0 +1,159 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket ACK Demo</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            max-width: 750px;
+            margin: 40px auto;
+            padding: 25px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2563eb;
+            margin-bottom: 30px;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        #retry {
+            background: #ea580c;
+        }
+
+        #retry:hover {
+            background: #c2410c;
+        }
+
+        #output {
+            background: #0f172a;
+            color: #86efac;
+            padding: 20px;
+            border-radius: 8px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 25px;
+            font-size: 14px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                margin: 15px;
+                padding: 15px;
+            }
+
+            button {
+                width: 100%;
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>WebSocket ACK Demo</h1>
+
+    <button id="send">Send Command</button>
+    <button id="retry">Retry Same Command</button>
+
+    <pre id="output"></pre>
+
+    <script>
+        const socket = new WebSocket("ws://localhost:8080");
+
+        const output = document.getElementById("output");
+
+        // Use the same ID when retrying the same command.
+        const messageId = "cmd-101";
+
+        const command = {
+            type: "COMMAND",
+            messageId,
+            payload: {
+                action: "turn_left"
+            }
+        };
+
+        function log(message) {
+            output.textContent += message + "\n";
+        }
+
+        socket.addEventListener("open", () => {
+            log("Connected to server");
+        });
+
+        socket.addEventListener("message", (event) => {
+            const response = JSON.parse(event.data);
+
+            if (response.type === "ACK") {
+                log(
+                    `ACK received for ${response.messageId}: ${response.status}`
+                );
+            } else {
+                log(JSON.stringify(response));
+            }
+        });
+
+        socket.addEventListener("close", () => {
+            log("Disconnected from server");
+        });
+
+        socket.addEventListener("error", () => {
+            log("WebSocket connection error");
+        });
+
+        document.getElementById("send").addEventListener("click", () => {
+            if (socket.readyState !== WebSocket.OPEN) {
+                log("Cannot send: WebSocket is not connected");
+                return;
+            }
+
+            socket.send(JSON.stringify(command));
+            log("Sent command: " + messageId);
+        });
+
+        document.getElementById("retry").addEventListener("click", () => {
+            if (socket.readyState !== WebSocket.OPEN) {
+                log("Cannot retry: WebSocket is not connected");
+                return;
+            }
+
+            socket.send(JSON.stringify(command));
+            log("Retried command: " + messageId);
+        });
+    </script>
+
+</body>
+
+</html>
