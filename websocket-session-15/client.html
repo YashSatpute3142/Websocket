@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Backpressure</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            max-width: 750px;
+            margin: 40px auto;
+            padding: 25px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2563eb;
+            margin-bottom: 30px;
+        }
+
+        #status {
+            text-align: center;
+            font-weight: bold;
+            color: #d97706;
+            background: #fef3c7;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        button {
+            display: block;
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 22px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+            margin: 20px auto;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        #buffer {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #2563eb;
+            padding: 16px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                margin: 15px;
+                padding: 15px;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>WebSocket Backpressure</h1>
+
+    <p id="status">Connecting...</p>
+
+    <button id="send">Send Large Messages</button>
+
+    <p id="buffer">Buffered Amount: 0 Bytes</p>
+
+    <script>
+        const socket = new WebSocket("ws://localhost:8080");
+
+        const status = document.getElementById("status");
+        const buffer = document.getElementById("buffer");
+
+        socket.addEventListener("open", () => {
+            status.textContent = "Connected";
+            status.style.color = "#16a34a";
+            status.style.background = "#dcfce7";
+        });
+
+        socket.addEventListener("message", (event) => {
+            console.log("Server:", event.data);
+        });
+
+        socket.addEventListener("close", () => {
+            status.textContent = "Disconnected";
+            status.style.color = "#64748b";
+            status.style.background = "#e2e8f0";
+        });
+
+        socket.addEventListener("error", () => {
+            status.textContent = "Connection Error";
+            status.style.color = "#dc2626";
+            status.style.background = "#fee2e2";
+        });
+
+        document.getElementById("send").addEventListener("click", () => {
+            const largeMessage = "A".repeat(100000);
+
+            for (let i = 0; i < 1000; i++) {
+                if (socket.readyState !== WebSocket.OPEN) {
+                    break;
+                }
+
+                socket.send(largeMessage);
+            }
+
+            buffer.textContent =
+                "Buffered Amount: " + socket.bufferedAmount + " bytes";
+        });
+    </script>
+
+</body>
+
+</html>

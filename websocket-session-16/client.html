@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Authentication</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            max-width: 750px;
+            margin: 40px auto;
+            padding: 25px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2563eb;
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        select,
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            background: white;
+            margin-bottom: 15px;
+        }
+
+        select:focus,
+        input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px #bfdbfe;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 11px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px 3px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        #connect {
+            background: #16a34a;
+        }
+
+        #connect:hover {
+            background: #15803d;
+        }
+
+        #delete {
+            background: #dc2626;
+        }
+
+        #delete:hover {
+            background: #b91c1c;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #cbd5e1;
+            margin: 25px 0;
+        }
+
+        h3 {
+            color: #334155;
+            margin-top: 30px;
+        }
+
+        #output {
+            background: #0f172a;
+            color: #86efac;
+            padding: 20px;
+            border-radius: 8px;
+            min-height: 180px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                margin: 15px;
+                padding: 15px;
+            }
+
+            button {
+                width: 100%;
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>WebSocket Authentication Demo</h1>
+
+    <label for="token">Select User:</label>
+
+    <select id="token">
+        <option value="yash-token-123">Yash (Admin)</option>
+        <option value="rahul-token-456">Rahul (User)</option>
+    </select>
+
+    <button id="connect">Connect</button>
+
+    <hr>
+
+    <input
+        id="chat"
+        type="text"
+        placeholder="Enter chat message"
+    >
+
+    <button id="send">Send Chat</button>
+
+    <button id="delete">Delete Message</button>
+
+    <h3>Server Responses</h3>
+
+    <pre id="output"></pre>
+
+    <script>
+        let socket;
+
+        const output = document.getElementById("output");
+
+        function log(message) {
+            output.textContent += message + "\n";
+        }
+
+        function sendMessage(data) {
+
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                log("WebSocket is not connected");
+                return;
+            }
+
+            socket.send(JSON.stringify(data));
+        }
+
+        document.getElementById("connect").addEventListener("click", () => {
+
+            if (socket && (
+                socket.readyState === WebSocket.OPEN ||
+                socket.readyState === WebSocket.CONNECTING
+            )) {
+                log("Already connected or connecting");
+                return;
+            }
+
+            socket = new WebSocket("ws://localhost:8080");
+
+            socket.addEventListener("open", () => {
+
+                log("Connected to server");
+
+                const token = document.getElementById("token").value;
+
+                sendMessage({
+                    type: "AUTH",
+                    token: token
+                });
+            });
+
+            socket.addEventListener("message", (event) => {
+
+                const response = JSON.parse(event.data);
+
+                log(JSON.stringify(response, null, 2));
+            });
+
+            socket.addEventListener("close", (event) => {
+                log("Connection closed: " + event.reason);
+            });
+
+            socket.addEventListener("error", () => {
+                log("WebSocket error");
+            });
+        });
+
+        document.getElementById("send").addEventListener("click", () => {
+
+            const text = document.getElementById("chat").value;
+
+            sendMessage({
+                type: "CHAT",
+                text: text
+            });
+        });
+
+        document.getElementById("delete").addEventListener("click", () => {
+
+            sendMessage({
+                type: "DELETE_MESSAGE",
+                messageId: "message-101"
+            });
+        });
+    </script>
+
+</body>
+
+</html>
